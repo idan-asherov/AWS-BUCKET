@@ -1,20 +1,38 @@
-# Step 1: Use a lightweight, official Node.js runtime base
-FROM node:22-alpine
+# ========================================================
+# שלב 1: שלב הבנייה והתקנת התלויות (Build Stage)
+# ========================================================
+FROM node:22-alpine AS builder
 
-# Step 2: Set the internal execution directory path inside the container
 WORKDIR /usr/src/app
 
-# Step 3: Copy package manifests first to leverage Docker's caching layer
+# העתקת מניפסט חבילות ה-NPM
 COPY package*.json ./
 
-# Step 4: Clean install only production dependencies
-RUN npm ci --only=production
+# התקנת כל התלויות (כולל חבילות פיתוח אם יהיו בעתיד)
+RUN npm ci
 
-# Step 5: Copy the rest of your application source code assets
+# העתקת שאר קובצי המקור לצורך הכנה
 COPY . .
 
-# Step 6: Document that our express application uses port 3000
+# ========================================================
+# שלב 2: שלב הריצה הנקי והמאובטח (Production Stage)
+# ========================================================
+FROM node:22-alpine AS runner
+
+WORKDIR /usr/src/app
+
+# העתקת תיקיית ה-node_modules המוכנה והרזה משלב ה-builder
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+
+# העתקת קובצי השרת וה-Frontend הסטטיים בלבד
+COPY app.js ./
+COPY package.json ./
+COPY public/ ./public/
+
+# חשיפת פורט האפליקציה
 EXPOSE 3000
 
-# Step 7: Define the runtime execution execution command
+# הרצה כפרופיל משתמש מאובטח שאינו Root (חלק מדרישות ה-Secured Host)
+USER node
+
 CMD ["npm", "start"]
