@@ -1,0 +1,30 @@
+name: Docker Build and Test Pipeline
+
+# הצינור יופעל אוטומטית בכל פעם שיש Push לענף הראשי (main)
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest # משתמש בשרת זמני של גיטהאב כדי להריץ את הבדיקה
+
+    steps:
+      # 1. מוריד את הקוד שלך מהרפוזיטורי לשרת הבדיקות של גיטהאב
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. מתקין סביבת Node.js כדי לוודא שאין שגיאות קומפילציה
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      # 3. מתקין את התלויות בצורה נקייה ומאובטחת
+      - name: Install Dependencies
+        run: npm ci
+
+      # 4. בודק ש-Docker מצליח לבנות את ה-Image שלך בהצלחה מלאה
+      - name: Test Docker Build
+        run: docker build -t s3-uploader-test:latest .
