@@ -1,57 +1,234 @@
 <!doctype html>
-<html lang="en">
+<html lang="he" dir="rtl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>S3 Image Uploader</title>
-    <link rel="stylesheet" href="style.css" />
+    <title>Claude Images - Cloud Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
   </head>
-  <body>
-    <div class="upload-container">
-      <h2>S3 Image Uploader</h2>
+  <body
+    class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-between p-6"
+  >
+    <header class="w-full max-w-5xl text-center py-6">
+      <h1
+        class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent"
+      >
+        מערכת ניהול תמונות בענן (Production Grade)
+      </h1>
+      <p class="text-slate-400 text-sm mt-2">
+        מנוהל תחת AWS S3, ECS Fargate & GitHub Actions
+      </p>
+    </header>
 
-      <form id="uploadForm">
-        <div class="form-group">
-          <label for="description">Description</label>
-          <input
-            type="text"
-            id="description"
-            placeholder="Enter a cool caption..."
-            required
-          />
+    <main class="w-full max-w-5xl flex flex-col gap-8 my-6">
+      <section
+        class="w-full max-w-md mx-auto bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-col items-center"
+      >
+        <h2 class="text-lg font-semibold mb-4 text-slate-200">
+          העלאת תמונה חדשה לענן
+        </h2>
+
+        <form id="uploadForm" class="w-full flex flex-col gap-4">
+          <label
+            class="border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-950/40"
+          >
+            <svg
+              class="w-10 h-10 text-slate-400 mb-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+              ></path>
+            </svg>
+            <span
+              id="fileNameDisplay"
+              class="text-xs text-slate-400 text-center"
+              >לחץ לבחירת קובץ תמונה</span
+            >
+            <input
+              type="file"
+              id="imageInput"
+              name="image"
+              class="hidden"
+              accept="image/*"
+              required
+            />
+          </label>
+          <button
+            type="submit"
+            id="submitBtn"
+            class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl transition-all shadow-lg shadow-indigo-600/30"
+          >
+            העלה ל-S3 Bucket
+          </button>
+        </form>
+        <div
+          id="statusMessage"
+          class="mt-4 text-sm text-center font-medium"
+        ></div>
+      </section>
+
+      <section
+        class="w-full bg-slate-900/30 border border-slate-800/80 rounded-2xl p-6 shadow-xl"
+      >
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-bold text-slate-200">
+            גלריית תמונות חיה מ-S3 Bucket
+          </h2>
+          <button
+            onclick="loadGallery()"
+            class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs rounded-lg transition-all text-slate-300"
+          >
+            רענן גלריה 🔄
+          </button>
         </div>
 
-        <div class="form-group">
-          <label for="imageFile">Select Image</label>
-          <input
-            type="file"
-            id="imageFile"
-            name="image"
-            accept="image/*"
-            required
-          />
+        <div
+          id="galleryContainer"
+          class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"
+        >
+          <p class="text-slate-500 text-sm col-span-full text-center py-8">
+            טוען קבצים מהענן...
+          </p>
         </div>
+      </section>
+    </main>
 
-        <button type="submit" id="submitBtn">Upload to S3</button>
-      </form>
+    <footer class="w-full text-center py-4 text-xs text-slate-500">
+      Idan Asherov © 2026 - Cloud Architecture Dashboard
+    </footer>
 
-      <div id="statusMessage"></div>
+    <script>
+      const form = document.getElementById("uploadForm");
+      const imageInput = document.getElementById("imageInput");
+      const fileNameDisplay = document.getElementById("fileNameDisplay");
+      const statusMessage = document.getElementById("statusMessage");
+      const galleryContainer = document.getElementById("galleryContainer");
 
-      <hr style="margin-top: 30px; border: 0; border-top: 1px solid #eee" />
-      <h3 style="text-align: center; color: #333; margin-top: 20px">
-        Live Bucket Contents
-      </h3>
-      <div
-        id="gallery"
-        style="
-          margin-top: 15px;
-          display: flex;
-          flex-direction: column;
-          gap: 15px;
-        "
-      ></div>
-    </div>
+      // הצגת שם הקובץ שנבחר
+      imageInput.addEventListener("change", () => {
+        if (imageInput.files.length > 0) {
+          fileNameDisplay.textContent = imageInput.files[0].name;
+          fileNameDisplay.className =
+            "text-xs text-indigo-400 font-medium text-center";
+        }
+      });
 
-    <script src="script.js"></script>
+      // טעינת הגלריה בעת טעינת העמוד
+      window.addEventListener("DOMContentLoaded", loadGallery);
+
+      async function loadGallery() {
+        try {
+          const response = await fetch("/posts");
+          const data = await response.json();
+
+          if (!data.success || !data.posts || data.posts.length === 0) {
+            galleryContainer.innerHTML =
+              '<p class="text-slate-500 text-sm col-span-full text-center py-8">אין עדיין קבצים ב-S3 Bucket. העלה תמונה ראשונה!</p>';
+            return;
+          }
+
+          galleryContainer.innerHTML = "";
+          data.posts.forEach((post) => {
+            const card = document.createElement("div");
+            card.className =
+              "bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-md flex flex-col justify-between transition-all hover:border-slate-700";
+
+            card.innerHTML = `
+                        <div class="h-48 bg-slate-950 overflow-hidden relative group">
+                            <img src="${post.imageUrl || post.url}" alt="Cloud Image" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
+                        </div>
+                        <div class="p-4 flex flex-col gap-3">
+                            <p class="text-xs text-slate-400 truncate font-mono" title="${post.unique}">${post.unique}</p>
+                            <div class="flex items-center gap-2">
+                                <button onclick="copyUrl('${post.imageUrl || post.url}')" class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg text-slate-300 transition-all text-center">
+                                    העתק קישור 🔗
+                                </button>
+                                <button onclick="deleteImage('${post.unique}')" class="py-1.5 px-3 bg-red-950/50 hover:bg-red-900 text-xs font-medium rounded-lg text-red-400 transition-all">
+                                    מחק 🗑️
+                                </button>
+                            </div>
+                        </div>
+                    `;
+            galleryContainer.appendChild(card);
+          });
+        } catch (err) {
+          console.error("Failed to load gallery:", err);
+          galleryContainer.innerHTML =
+            '<p class="text-red-400 text-sm col-span-full text-center py-8">שגיאה בטעינת הנתונים מהענן</p>';
+        }
+      }
+
+      // טיפול בהעלאת קובץ
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (imageInput.files.length === 0) return;
+
+        const formData = new FormData();
+        formData.append("image", imageInput.files[0]);
+
+        statusMessage.textContent = "מעלה קובץ לענן...";
+        statusMessage.className =
+          "mt-4 text-sm text-center font-medium text-yellow-400";
+
+        try {
+          const response = await fetch("/upload", {
+            method: "POST",
+            body: formData,
+          });
+          const result = await response.json();
+
+          if (response.ok && result.success) {
+            statusMessage.textContent = "התמונה הועלתה בהצלחה ל-S3!";
+            statusMessage.className =
+              "mt-4 text-sm text-center font-medium text-green-400";
+            form.reset();
+            fileNameDisplay.textContent = "לחץ לבחירת קובץ תמונה";
+            fileNameDisplay.className = "text-xs text-slate-400 text-center";
+            loadGallery(); // רענון אוטומטי של הגלריה
+          } else {
+            throw new Error(result.message || "שגיאה בהעלאה");
+          }
+        } catch (err) {
+          statusMessage.textContent = "שגיאה: " + err.message;
+          statusMessage.className =
+            "mt-4 text-sm text-center font-medium text-red-400";
+        }
+      });
+
+      // פונקציית העתקת קישור
+      function copyUrl(url) {
+        navigator.clipboard.writeText(url);
+        alert("קישור התמונה הועתק ללוח בהצלחה!");
+      }
+
+      // פונקציית מחיקת תמונה
+      async function deleteImage(key) {
+        if (
+          !confirm("האם אתה בטוח שברצונך למחוק את התמונה לצמיתות מה-S3 Bucket?")
+        )
+          return;
+
+        try {
+          const response = await fetch(`/posts/${encodeURIComponent(key)}`, {
+            method: "DELETE",
+          });
+          const result = await response.json();
+
+          if (response.ok && result.success) {
+            loadGallery(); // רענון הגלריה לאחר מחיקה
+          } else {
+            throw new Error(result.message || "שגיאה במחיקה");
+          }
+        } catch (err) {
+          alert("שגיאה במחיקת הקובץ: " + err.message);
+        }
+      }
+    </script>
   </body>
 </html>

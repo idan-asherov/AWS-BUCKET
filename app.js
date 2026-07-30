@@ -15,10 +15,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // -------------------------------------------------------------
-// AWS S3 CLIENT (DEVOPS FIX FOR PART 3)
+// AWS S3 CLIENT (DEVOPS PRODUCTION SETUP)
 // -------------------------------------------------------------
 const s3 = new S3Client({
-  region: process.env.AWS_REGION || "us-east-1",
+  region: process.env.AWS_REGION || "eu-north-1",
 });
 
 const BUCKET = process.env.S3_BUCKET || process.env.S3_BUCKET_NAME;
@@ -28,20 +28,19 @@ app.use(express.json());
 app.use(express.static("public"));
 
 // -------------------------------------------------------------
-// MANDATORY HEALTH CHECK ROUTES (FIXED FOR ALB)
+// MANDATORY HEALTH CHECK ROUTES (ALB COMPATIBLE)
 // -------------------------------------------------------------
-
-// Root endpoint for ALB health check (Express Mode default)
 app.get("/", (req, res) => {
   res.status(200).send("OK - Server is up and running!");
 });
 
-// Additional health check route
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "healthy", version: "1.0" });
 });
 
-// Upload Route
+// -------------------------------------------------------------
+// UPLOAD ROUTE
+// -------------------------------------------------------------
 app.post("/upload", upload.single("image"), async (req, res) => {
   try {
     if (!req.file) {
@@ -69,14 +68,16 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   }
 });
 
-// Fetches live objects directly from S3 Bucket
-app.get("/posts", async (req, res) => {
+// -------------------------------------------------------------
+// FETCH IMAGES / POSTS ROUTES (SUPPORTING BOTH PATHS)
+// -------------------------------------------------------------
+const handleFetchImages = async (req, res) => {
   try {
     const listCommand = new ListObjectsV2Command({ Bucket: BUCKET });
     const s3Response = await s3.send(listCommand);
 
     if (!s3Response.Contents) {
-      return res.status(200).json({ success: true, posts: [] });
+      return res.status(200).json({ success: true, posts: [], images: [] });
     }
 
     const postsWithUrls = await Promise.all(
@@ -91,24 +92,38 @@ app.get("/posts", async (req, res) => {
         });
 
         return {
+          key: item.Key,
           unique: item.Key,
+          size: item.Size,
+          lastModified: item.LastModified,
           description: "Stored in S3",
           imageUrl: signedUrl,
+          url: signedUrl,
         };
       }),
     );
 
-    res.status(200).json({ success: true, posts: postsWithUrls });
+    // מחזיר מבנה כפול כדי לתמוך גם בגלריה החדשה וגם בקוד הישן אם קיים
+    res.status(200).json({
+      success: true,
+      posts: postsWithUrls,
+      images: postsWithUrls,
+    });
   } catch (error) {
     console.log("Error listing files from S3:", error);
     res
       .status(500)
       .json({ success: false, message: "Failed to fetch cloud records" });
   }
-});
+};
 
-// Delete Route
-app.delete("/posts/:key", async (req, res) => {
+app.get("/posts", handleFetchImages);
+app.get("/images", handleFetchImages);
+
+// -------------------------------------------------------------
+// DELETE ROUTES (SUPPORTING BOTH PATHS)
+// -------------------------------------------------------------
+const handleDeleteImage = async (req, res) => {
   try {
     const s3Key = req.params.key;
 
@@ -128,8 +143,14 @@ app.delete("/posts/:key", async (req, res) => {
       .status(500)
       .json({ message: "Failed to remove asset from cloud.", success: false });
   }
-});
+};
 
+app.delete("/posts/:key", handleDeleteImage);
+app.delete("/images/:key", handleDeleteImage);
+
+// -------------------------------------------------------------
+// SERVER LISTENER
+// -------------------------------------------------------------
 app.listen(PORT, () => {
   console.log(`🚀 Server listening on port ${PORT}`);
 });
