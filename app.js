@@ -16,10 +16,6 @@ const PORT = process.env.PORT || 3000;
 
 // -------------------------------------------------------------
 // AWS S3 CLIENT (DEVOPS FIX FOR PART 3)
-// We remove hardcoded `credentials: { accessKeyId, secretAccessKey }`.
-// When running locally with .env, AWS SDK reads process.env.AWS_ACCESS_KEY_ID automatically.
-// When running in ECS Fargate, AWS SDK automatically fetches temporary credentials
-// from the IAM Task Role metadata service.
 // -------------------------------------------------------------
 const s3 = new S3Client({
   region: process.env.AWS_REGION || "us-east-1",
@@ -32,9 +28,15 @@ app.use(express.json());
 app.use(express.static("public"));
 
 // -------------------------------------------------------------
-// MANDATORY HEALTH CHECK ROUTE (DEVOPS FIX FOR PART 2 & 5)
-// Needed by ALB Target Group to verify tasks are running cleanly
+// MANDATORY HEALTH CHECK ROUTES (FIXED FOR ALB)
 // -------------------------------------------------------------
+
+// Root endpoint for ALB health check (Express Mode default)
+app.get("/", (req, res) => {
+  res.status(200).send("OK - Server is up and running!");
+});
+
+// Additional health check route
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "healthy", version: "1.0" });
 });
