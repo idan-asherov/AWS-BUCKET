@@ -1,0 +1,35 @@
+{
+  "family": "claude-images-task-def",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "256",
+  "memory": "512",
+  "taskRoleArn": "arn:aws:iam::538379554611:role/ECSTaskClaudeImagesRole",
+  "executionRoleArn": "arn:aws:iam::538379554611:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "claude-images-container",
+      "image": "538379554611.dkr.ecr.eu-north-1.amazonaws.com/claude-images-idan-asherov:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "hostPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "AWS_REGION",
+          "value": "eu-north-1"
+        },
+        {
+          "name": "S3_BUCKET",
+          "value": "aws-nodejs-idan-asherov"
+        }
+      ]
+    }
+  ]
+}

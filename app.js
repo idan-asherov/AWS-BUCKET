@@ -6,27 +6,38 @@ const {
   GetObjectCommand,
   PutObjectCommand,
   DeleteObjectCommand,
-  ListObjectsV2Command, // Added import to look up bucket contents
+  ListObjectsV2Command,
 } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { randomUUID } = require("crypto");
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
+// -------------------------------------------------------------
+// AWS S3 CLIENT (DEVOPS FIX FOR PART 3)
+// We remove hardcoded `credentials: { accessKeyId, secretAccessKey }`.
+// When running locally with .env, AWS SDK reads process.env.AWS_ACCESS_KEY_ID automatically.
+// When running in ECS Fargate, AWS SDK automatically fetches temporary credentials
+// from the IAM Task Role metadata service.
+// -------------------------------------------------------------
 const s3 = new S3Client({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
+  region: process.env.AWS_REGION || "us-east-1",
 });
 
-const BUCKET = process.env.S3_BUCKET;
+const BUCKET = process.env.S3_BUCKET || process.env.S3_BUCKET_NAME;
 const upload = multer({ storage: multer.memoryStorage() });
 
 app.use(express.json());
 app.use(express.static("public"));
+
+// -------------------------------------------------------------
+// MANDATORY HEALTH CHECK ROUTE (DEVOPS FIX FOR PART 2 & 5)
+// Needed by ALB Target Group to verify tasks are running cleanly
+// -------------------------------------------------------------
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "healthy", version: "1.0" });
+});
 
 // Upload Route
 app.post("/upload", upload.single("image"), async (req, res) => {
@@ -56,19 +67,16 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   }
 });
 
-// UPDATED: Fetches the live objects list directly from your S3 Bucket
+// Fetches live objects directly from S3 Bucket
 app.get("/posts", async (req, res) => {
   try {
-    // 1. Request list of files from the S3 bucket
     const listCommand = new ListObjectsV2Command({ Bucket: BUCKET });
     const s3Response = await s3.send(listCommand);
 
-    // If the bucket is totally empty, return an empty array
     if (!s3Response.Contents) {
       return res.status(200).json({ success: true, posts: [] });
     }
 
-    // 2. Map over every file in the bucket and generate a temporary signed viewing URL
     const postsWithUrls = await Promise.all(
       s3Response.Contents.map(async (item) => {
         const getCommand = new GetObjectCommand({
@@ -81,8 +89,8 @@ app.get("/posts", async (req, res) => {
         });
 
         return {
-          unique: item.Key, // The filename key
-          description: "Stored in S3", // Placeholder since S3 doesn't store our text inputs
+          unique: item.Key,
+          description: "Stored in S3",
           imageUrl: signedUrl,
         };
       }),
