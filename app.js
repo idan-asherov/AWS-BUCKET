@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const multer = require("multer");
+const path = require("path");
 const {
   S3Client,
   GetObjectCommand,
@@ -26,8 +27,8 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 app.use(express.json());
 
-// הגשת קבצים סטטיים מתיקיית public
-app.use(express.static("public"));
+// הגשת קבצים סטטיים מתיקיית public בצורה בטוחה
+app.use(express.static(path.join(__dirname, "public")));
 
 // -------------------------------------------------------------
 // MANDATORY HEALTH CHECK & ROOT ROUTES (ALB COMPATIBLE)
@@ -38,9 +39,9 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "healthy", version: "2.0" });
 });
 
-// הנתיב הראשי מגיש כעת את הממשק המעוצב החדש (index.html)
+// הנתיב הראשי מגיש בבטחה את הממשק המעוצב החדש (index.html)
 app.get("/", (req, res) => {
-  res.sendFile(__dirname + "/public/index.html");
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 // -------------------------------------------------------------
