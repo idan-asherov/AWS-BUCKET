@@ -25,17 +25,22 @@ const BUCKET = process.env.S3_BUCKET || process.env.S3_BUCKET_NAME;
 const upload = multer({ storage: multer.memoryStorage() });
 
 app.use(express.json());
+
+// הגשת קבצים סטטיים מתיקיית public
 app.use(express.static("public"));
 
 // -------------------------------------------------------------
-// MANDATORY HEALTH CHECK ROUTES (ALB COMPATIBLE)
+// MANDATORY HEALTH CHECK & ROOT ROUTES (ALB COMPATIBLE)
 // -------------------------------------------------------------
-app.get("/", (req, res) => {
-  res.status(200).send("OK - Server is up and running!");
+
+// נתיב לבדיקת תקינות ייעודי עבור ה-Load Balancer
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "healthy", version: "2.0" });
 });
 
-app.get("/health", (req, res) => {
-  res.status(200).json({ status: "healthy", version: "1.0" });
+// הנתיב הראשי מגיש כעת את הממשק המעוצב החדש (index.html)
+app.get("/", (req, res) => {
+  res.sendFile(__dirname + "/public/index.html");
 });
 
 // -------------------------------------------------------------
@@ -103,7 +108,6 @@ const handleFetchImages = async (req, res) => {
       }),
     );
 
-    // מחזיר מבנה כפול כדי לתמוך גם בגלריה החדשה וגם בקוד הישן אם קיים
     res.status(200).json({
       success: true,
       posts: postsWithUrls,
