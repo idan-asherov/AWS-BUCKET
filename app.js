@@ -18,11 +18,16 @@ const PORT = process.env.PORT || 3000;
 // -------------------------------------------------------------
 // AWS S3 CLIENT (DEVOPS PRODUCTION SETUP)
 // -------------------------------------------------------------
-const s3 = new S3Client({
-  region: process.env.AWS_REGION || "eu-north-1",
-});
-
+const AWS_REGION = process.env.AWS_REGION || "eu-north-1";
 const BUCKET = process.env.S3_BUCKET || process.env.S3_BUCKET_NAME;
+
+if (!BUCKET) {
+  console.warn(
+    "⚠️ Warning: S3_BUCKET or S3_BUCKET_NAME is not defined in environment variables!",
+  );
+}
+
+const s3 = new S3Client({ region: AWS_REGION });
 const upload = multer({ storage: multer.memoryStorage() });
 
 app.use(express.json());
@@ -39,7 +44,7 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "healthy", version: "2.0" });
 });
 
-// הנתיב הראשי מגיש בבטחה את הממשק המעוצב החדש (index.html)
+// הנתיב הראשי מגיש בבטחה את ה-Frontend
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
@@ -69,20 +74,20 @@ app.post("/upload", upload.single("image"), async (req, res) => {
       .status(201)
       .json({ message: "Image uploaded successfully!", success: true });
   } catch (error) {
-    console.log("S3 Upload Error:", error);
+    console.error("S3 Upload Error:", error);
     res.status(500).json({ message: "Failed to upload image", success: false });
   }
 });
 
 // -------------------------------------------------------------
-// FETCH IMAGES / POSTS ROUTES (SUPPORTING BOTH PATHS)
+// FETCH IMAGES / POSTS ROUTES
 // -------------------------------------------------------------
 const handleFetchImages = async (req, res) => {
   try {
     const listCommand = new ListObjectsV2Command({ Bucket: BUCKET });
     const s3Response = await s3.send(listCommand);
 
-    if (!s3Response.Contents) {
+    if (!s3Response.Contents || s3Response.Contents.length === 0) {
       return res.status(200).json({ success: true, posts: [], images: [] });
     }
 
@@ -115,7 +120,7 @@ const handleFetchImages = async (req, res) => {
       images: postsWithUrls,
     });
   } catch (error) {
-    console.log("Error listing files from S3:", error);
+    console.error("Error listing files from S3:", error);
     res
       .status(500)
       .json({ success: false, message: "Failed to fetch cloud records" });
@@ -126,11 +131,18 @@ app.get("/posts", handleFetchImages);
 app.get("/images", handleFetchImages);
 
 // -------------------------------------------------------------
-// DELETE ROUTES (SUPPORTING BOTH PATHS)
+// DELETE ROUTES
 // -------------------------------------------------------------
 const handleDeleteImage = async (req, res) => {
   try {
-    const s3Key = req.params.key;
+    const rawKey = req.params.key || req.params[0];
+    if (!rawKey) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No key provided" });
+    }
+
+    const s3Key = decodeURIComponent(rawKey);
 
     await s3.send(
       new DeleteObjectCommand({
@@ -143,7 +155,7 @@ const handleDeleteImage = async (req, res) => {
       .status(200)
       .json({ message: "Item purged from S3 storage!", success: true });
   } catch (error) {
-    console.log("S3 Deletion Error:", error);
+    console.error("S3 Deletion Error:", error);
     res
       .status(500)
       .json({ message: "Failed to remove asset from cloud.", success: false });
