@@ -10,7 +10,7 @@
   "executionRoleArn": "arn:aws:iam::538379554611:role/ecsTaskExecutionRole",
   "containerDefinitions": [
     {
-      "name": "claude-images-container",
+      "name": "Main",
       "image": "538379554611.dkr.ecr.eu-north-1.amazonaws.com/claude-images-idan-asherov:latest",
       "essential": true,
       "portMappings": [
