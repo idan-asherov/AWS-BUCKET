@@ -6,7 +6,7 @@
   ],
   "cpu": "256",
   "memory": "512",
-  "taskRoleArn": "arn:aws:iam::538379554611:role/ECSTaskClaudeImagesRole",
+  "taskRoleArn": "arn:aws:iam::538379554611:role/ecsTaskRoleForS3",
   "executionRoleArn": "arn:aws:iam::538379554611:role/ecsTaskExecutionRole",
   "containerDefinitions": [
     {
@@ -28,8 +28,25 @@
         {
           "name": "S3_BUCKET",
           "value": "aws-nodejs-idan-asherov"
+        },
+        {
+          "name": "S3_BUCKET_NAME",
+          "value": "aws-nodejs-idan-asherov"
+        },
+        {
+          "name": "PORT",
+          "value": "3000"
         }
-      ]
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/claude-images-container",
+          "awslogs-region": "eu-north-1",
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group": "true"
+        }
+      }
     }
   ]
 }
