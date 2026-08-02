@@ -166,8 +166,8 @@ app.delete("/posts/:key", handleDeleteImage);
 app.delete("/images/:key", handleDeleteImage);
 
 // -------------------------------------------------------------
-// SERVER LISTENER
+// SERVER LISTENER (CRITICAL FOR AWS ECS / DOCKER FARGATE)
 // -------------------------------------------------------------
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server listening on port ${PORT}`);
 });
