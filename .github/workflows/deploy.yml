@@ -51,4 +51,4 @@ jobs:
           task-definition: ${{ steps.render-task-def.outputs.task-definition }}
           service: claude-images-prod-v3
           cluster: default
-          wait-for-service-stability: true
+          wait-for-service-stability: false
