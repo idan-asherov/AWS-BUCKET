@@ -49,6 +49,6 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: ${{ steps.render-task-def.outputs.task-definition }}
-          service: claude-images-prod-v2
+          service: claude-images-prod-v3
           cluster: default
           wait-for-service-stability: true
