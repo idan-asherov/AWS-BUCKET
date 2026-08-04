@@ -7,7 +7,11 @@
   "cpu": "1024",
   "memory": "3072",
   "taskRoleArn": "arn:aws:iam::538379554611:role/ecsTaskRoleForS3",
-  "executionRoleArn": "arn:aws:iam::538379554611:role/ecsTaskExecutionRole",
+  "executionRoleArn": "arn:aws:iam::538379554611:role/service-role/ecsTaskExecutionRole",
+  "runtimePlatform": {
+    "cpuArchitecture": "X86_64",
+    "operatingSystemFamily": "LINUX"
+  },
   "containerDefinitions": [
     {
       "name": "Main",
@@ -17,7 +21,9 @@
         {
           "containerPort": 3000,
           "hostPort": 3000,
-          "protocol": "tcp"
+          "protocol": "tcp",
+          "name": "main-3000-tcp",
+          "appProtocol": "http"
         }
       ],
       "environment": [
