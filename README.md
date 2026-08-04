@@ -1,69 +1,70 @@
 # Claude Images - AWS Deployment
 
-פרויקט להרצה וניהול של אפליקציית Node.js בקונטיינר בענן של AWS, תוך שימוש בשירותי ענן מתקדמים, אוטומציה וניהול אחסון מול S3.
+פרויקט להרצה וניהול של אפליקציית Node.js בקונטיינר בענן של AWS, תוך שימוש בשירותי ענן מתקדמים, אוטומציה וניהול אחסון מול S3[cite: 1].
 
 ---
 
 ## 🏗️ איך המערכת בנויה?
 
-המערכת בנויה בארכיטקטורת Microservices / Serverless-adjacent מבוססת ענן:
+המערכת בנויה בהתאם לדרישות הייצור והארכיטקטורה של הפרויקט[cite: 1]:
 
-1. **Compute (ECS / Fargate):** האפליקציה רצה בקונטיינרים של Docker ומנוהלת תחת Amazon ECS באמצעות Fargate (ללא צורך בניהול שרתי EC2 פיזיים).
-2. **Networking & Load Balancing:** תעבורת המשתמשים מגיעה קודם כל ל-**Application Load Balancer (ALB)** אשר מפנה את הבקשות בצורה מאוזנת (Load Balancing) אל משימות ה-ECS דרך פורט 3000, תוך ביצוע בדיקות בריאות (Health Checks) שוטפות.
-3. **Storage (Amazon S3):** האפליקציה מתקשרת עם באקט ייעודי ב-S3 לשמירה ולניהול קבצי המדיה/התמונות.
+- **Compute (ECS / Fargate):** האפליקציה רצה בקונטיינרים של Docker בתוך Amazon ECS באמצעות AWS Fargate עם לפחות שני מופעים (Tasks) פעילים כדי להבטיח רציפות תפקודית במקרה של נפילת קונטיינר[cite: 1].
+- **Networking & Load Balancing:** המשתמשים מגיעים אל האפליקציה דרך Application Load Balancer (ALB) המבצע בדיקות בריאות (Health Checks) שוטפות ושולח תנועה רק למשימות תקינות[cite: 1].
+- **Storage (Amazon S3):** האפליקציה מתקשרת עם באקט ייעודי ב-S3 לשמירה ולניהול קבצי המדיה והתמונות[cite: 1].
 
 ---
 
 ## ☁️ באילו שירותי AWS השתמשנו?
 
-- **Amazon ECS (Elastic Container Service) & Fargate:** להרצת הקונטיינרים בסביבת Serverless.
-- **Amazon ECR (Elastic Container Registry):** לאחסון תמונות ה-Docker (Docker Images).
-- **Application Load Balancer (ALB):** לניתוב תעבורת רשת ציבורית (HTTP) אל הקונטיינרים.
-- **Amazon S3:** באקט אחסון ענני לשמירת התמונות/נתונים של האפליקציה.
-- **AWS IAM (Identity and Access Management):** לניהול הרשאות מאובטח בין קונטיינרי ה-ECS לשירותי ה-S3 וה-CloudWatch.
-- **Amazon CloudWatch:** לאיסוף לוגים וניטור פעילות השרת.
+- **Amazon ECS & Fargate:** להרצת הקונטיינרים בסביבת Serverless מנוהלת[cite: 1].
+- **Amazon ECR:** לאחסון תמונות ה-Docker (Docker Images)[cite: 1].
+- **Application Load Balancer (ALB):** לניתוב תעבורת רשת ציבורית אל האפליקציה[cite: 1].
+- **Amazon S3:** באקט אחסון ענני לשמירת נתונים[cite: 1].
+- **AWS IAM:** לניהול הרשאות מאובטח באמצעות Task Roles ייעודיים[cite: 1].
+- **Amazon CloudWatch:** לאיסוף לוגים וניטור פעילות המערכת[cite: 1].
 
 ---
 
 ## 🔄 איך ה-CI/CD עובד?
 
-הפריסה והעדכון של האפליקציה מנוהלים בצורה אוטומטית או ידנית מבוססת קונטיינרים:
+התהליך מנוהל באופן אוטומטי לחלוטין באמצעות **GitHub Actions**[cite: 1]:
 
-1. **Build:** בניית תמונת ה-Docker (Docker Image) המכילה את קוד האפליקציה והתלויות.
-2. **Push:** העלאת ה-Image המעודכן אל ה-Repository ב-**Amazon ECR**.
-3. **Deploy:** עדכון ה-Task Definition ב-ECS והפעלת **Force New Deployment**. ה-ECS מבצע Rolling Update חלקתי שבו המשימות הישנות מתנתקות בצורה מסודרת (Connection Draining) והחדשות עולות במקומן ללא הפסקת שירות (Zero Downtime).
+- בעת ביצוע `git push` לענף ה-`main`, הפייפליין מתחיל לפעול אוטומטית[cite: 1].
+- שלבי ה-Pipeline כוללים: **Checkout**, בניית תמונת ה-**Docker** (Build), העלאתה ל-**Amazon ECR** (Push), ופריסת הגרסה החדשה ל-**Amazon ECS** (Deploy)[cite: 1].
+- הפריסה מתבצעת במתודולוגיית Zero Downtime (Rolling Update), כך שהגרסה החדשה עולה והופכת ל-Healthy טרם סגירת המשימות הישנות[cite: 1].
 
 ---
 
 ## 🔐 איך טיפלתם בהרשאות?
 
-ניהול ההרשאות בוצע בצורה קפדנית ומאובטחת באמצעות **AWS IAM Roles**:
+ניהול ההרשאות בוצע בצורה קפדנית ועומד בכלל "בלי סודות בקוד"[cite: 1]:
 
-- **Task Execution Role:** מאפשר לסוכן ה-ECS למשוך את תמונת הקונטיינר מ-ECR ולשלוח לוגים ל-CloudWatch.
-- **Task Role:** תפקיד ייעודי שניתן לקוד הרץ בתוך הקונטיינר, המעניק לו הרשאות גישה מבוקרות (IAM Policy) לבאקט ה-S3 לצורך קריאה וכתיבה של קבצים, מבלי לצורך לשמור קדדנטציות (Access Keys) רגישות בתוך הקוד.
+- אסור לשמור AWS Access Keys בקוד, ב-Docker Image, בקבצי `.env` או ב-GitHub Repository[cite: 1].
+- האפליקציה מקבלת הרשאות באמצעות **IAM Task Role** ייעודי המעניק לה גישה מבוקרת לשירותי ה-S3 בלבד[cite: 1].
 
 ---
 
 ## 🛠️ בעיה שנתקלנו בה ואיך פתרנו אותה?
 
-- **הבעיה:** בשלבי העלייה הראשונים של הקונטיינר ל-ECS, הופיעה אזהרה בלוגים שציינה כי משתני הסביבה הנדרשים לזיהוי באקט ה-S3 (`S3_BUCKET` / `S3_BUCKET_NAME`) אינם מוגדרים, וה-Health Checks של ה-ALB נכשלו עם שגיאות `404` או `Timeout`. בנוסף, גילינו שחוקי ה-Security Group של ה-ALB לא אפשרו תעבורת HTTP ציבורית (פורט 80) מבחוץ.
+- **הבעיה:** בשלבי העלייה הראשונים של הקונטיינר ל-ECS, הופיעה אזהרה בלוגים שציינה כי משתני הסביבה הנדרשים לזיהוי באקט ה-S3 אינם מוגדרים, וה-Health Checks של ה-ALB נכשלו עם שגיאות `404` או `Timeout` עקב איטיות באתחול תחת משאבי זיכרון מצומצמים[cite: 1]. בנוסף, נדרשה התאמה של חוקי ה-Security Group[cite: 1].
 - **הפתרון:**
-  1. הגדרנו מחדש את משתני הסביבה הנדרשים ישירות בתוך ה-**Task Definition** של ה-ECS (הוספת המפתחות התואמים עבור חיבור ה-S3 והרשת).
-  2. עדכנו את ה-**Security Group** של ה-Load Balancer כך שיאפשר תעבורת כניסה בפורט `80` (HTTP) מכל כתובת (`0.0.0.0/0`).
-  3. ביצענו Force Deployment מעודכן שווידא שהמשימות רצות בצורה תקינה, עוברות בהצלחה את בדיקות הבריאות, ומקושרות בצורה חלקה ל-Load Balancer.
+  1. הגדרנו מחדש את משתני הסביבה הנדרשים ישירות בתוך ה-**Task Definition** של ה-ECS[cite: 1].
+  2. כווננו את משאבי הזיכרון וה-CPU של המשימה ועִדכנו את ה-**Security Group** של ה-Load Balancer לאפשר תעבורה תקינה[cite: 1].
+  3. ביצענו בדיקות ולידציה שווידאו שהמשימות רצות בצורה תקינה, עוברות את בדיקות הבריאות, ומקושרות בצורה חלקה ללא פגיעה בזמינות השירות[cite: 1].
 
 ---
 
-## 📐 תרשים ארכיטקטורה בסיסי
+## 📐 תרשים ארכיטקטורה
 
 ```text
-[ User / Browser ]
-        │
-        ▼ (HTTP / Port 80)
-[ Application Load Balancer (ALB) ]
-        │
-        ▼ (Port 3000)
-[ AWS ECS / Fargate (Tasks) ] ──(IAM Roles)──> [ Amazon S3 (Storage) ]
-        │
-        └──> [ Amazon CloudWatch (Logs) ]
+GitHub ──(git push)──> GitHub Actions
+                              │
+                              ▼
+                         Amazon ECR
+                              │
+                              ▼
+User ───────> ALB ──> ECS Fargate (Task 1 & Task 2)
+                              │
+                              ├──> Amazon S3 (Storage)
+                              └──> Amazon CloudWatch (Logs)
 ```
